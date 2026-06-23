@@ -1,0 +1,643 @@
+<!DOCTYPE html>
+<html lang="pt-BR">
+<head>
+<meta charset="UTF-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1.0" />
+<title>Veromidia — Tráfego para clínicas de saúde e estética</title>
+<meta name="description" content="Tráfego pago especializado em clínicas de saúde e estética. Agende uma conversa." />
+<link rel="preconnect" href="https://fonts.googleapis.com" />
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
+<link href="https://fonts.googleapis.com/css2?family=Lato:ital,wght@0,400;0,700;0,900;1,400;1,700&display=swap" rel="stylesheet" />
+<style>
+  :root {
+    --crimson: #b8312a;
+    --crimson-dark: #9c281f;
+    --crimson-tint: #fbf1f0;
+    --ink: #1a1a1a;
+    --muted: #6b6b6b;
+    --line: #e6e6e6;
+    --badge: #f3f3f3;
+    --track: #f0eaea;
+    --radius: 8px;
+  }
+  * { box-sizing: border-box; margin: 0; padding: 0; }
+  html, body { height: 100%; }
+  body {
+    font-family: 'Lato', -apple-system, sans-serif;
+    color: var(--ink);
+    background: #ffffff;
+    -webkit-font-smoothing: antialiased;
+    line-height: 1.4;
+  }
+
+  /* ---------- App shell ---------- */
+  .app { min-height: 100dvh; display: flex; flex-direction: column; }
+
+  .progress {
+    position: sticky; top: 0; left: 0; right: 0;
+    height: 5px; background: var(--track); z-index: 30;
+    display: none;
+  }
+  .progress.show { display: block; }
+  .progress__bar {
+    height: 100%; width: 0%; background: var(--crimson);
+    transition: width .45s cubic-bezier(.22,.61,.36,1);
+  }
+
+  .topbar {
+    height: 52px; display: flex; align-items: center;
+    padding: 0 18px; position: relative;
+  }
+  .back {
+    display: none; align-items: center; justify-content: center;
+    width: 38px; height: 38px; border: none; background: transparent;
+    cursor: pointer; color: var(--ink); border-radius: 50%;
+    font-size: 22px; line-height: 1; transition: background .15s;
+  }
+  .back:hover { background: #f5f5f5; }
+  .back.show { display: inline-flex; }
+
+  .main {
+    flex: 1; width: 100%; max-width: 660px;
+    margin: 0 auto; padding: 8px 28px 56px;
+    display: flex; flex-direction: column;
+  }
+
+  /* ---------- Logo / wordmark ---------- */
+  .brand { text-align: center; margin: 22px 0 8px; }
+  .brand__mark {
+    font-weight: 900; font-size: 1.5rem; letter-spacing: .04em;
+    line-height: 1;
+  }
+  .brand__mark .a { color: var(--ink); }
+  .brand__mark .b { color: var(--crimson); }
+  .brand__sub {
+    margin-top: 6px; font-size: .62rem; font-weight: 700;
+    letter-spacing: .22em; text-transform: uppercase; color: var(--muted);
+  }
+
+  /* ---------- Screens ---------- */
+  .screen { display: none; flex: 1; flex-direction: column; }
+  .screen.active { display: flex; animation: fade .4s ease both; }
+  @keyframes fade { from { opacity: 0; transform: translateY(8px); } to { opacity: 1; transform: none; } }
+
+  .spacer { flex: 0 0 auto; }
+
+  /* ---------- Cover (capa) ---------- */
+  .headline {
+    font-weight: 900; font-size: clamp(1.85rem, 7vw, 2.45rem);
+    line-height: 1.12; letter-spacing: -.015em;
+    text-align: left; margin: 40px 0 30px;
+  }
+  .bullets { list-style: none; display: flex; flex-direction: column; gap: 14px; margin-bottom: 28px; }
+  .bullets li {
+    display: flex; align-items: center; gap: 12px;
+    font-size: 1.18rem; color: #333; font-weight: 400;
+  }
+  .bullets .emo { font-size: 1.3rem; line-height: 1; flex: 0 0 auto; }
+  .cover__foot {
+    font-style: italic; color: var(--muted); font-size: 1.02rem;
+    line-height: 1.5; margin-bottom: 40px;
+  }
+
+  /* ---------- Questions ---------- */
+  .q {
+    font-weight: 700; font-size: clamp(1.45rem, 5.5vw, 1.95rem);
+    line-height: 1.2; letter-spacing: -.01em; margin: 18px 0 0;
+  }
+  .q .req { color: var(--crimson); font-weight: 700; }
+  .q-desc { color: var(--muted); font-size: 1.08rem; line-height: 1.55; margin-top: 16px; }
+
+  .options { display: flex; flex-direction: column; gap: 14px; margin-top: 30px; }
+  .opt {
+    display: flex; align-items: center; gap: 14px;
+    width: 100%; text-align: left; cursor: pointer;
+    background: #fff; border: 1px solid var(--line); border-radius: var(--radius);
+    padding: 18px 18px; font-family: inherit; font-size: 1.12rem; color: var(--ink);
+    transition: border-color .15s, background .15s, box-shadow .15s;
+  }
+  .opt:hover { border-color: #c9c9c9; }
+  .opt__key {
+    flex: 0 0 auto; width: 40px; height: 40px; border-radius: 7px;
+    background: var(--badge); display: flex; align-items: center; justify-content: center;
+    font-weight: 700; font-size: 1.05rem; color: var(--ink);
+  }
+  .opt__text { display: flex; align-items: center; gap: 9px; }
+  .opt.selected {
+    border-color: var(--crimson); background: var(--crimson-tint);
+    box-shadow: 0 0 0 1px var(--crimson) inset;
+  }
+  .opt.selected .opt__key { background: var(--crimson); color: #fff; }
+
+  /* ---------- Inputs (cadastro) ---------- */
+  .field { margin-top: 30px; }
+  .input-wrap {
+    display: flex; align-items: center;
+    border: 1px solid var(--line); border-radius: var(--radius);
+    background: #fafafa; transition: border-color .15s, box-shadow .15s, background .15s;
+    overflow: hidden;
+  }
+  .input-wrap:focus-within {
+    border-color: var(--crimson); background: #fff;
+    box-shadow: 0 0 0 1px var(--crimson) inset;
+  }
+  .input-wrap .prefix {
+    padding: 0 4px 0 16px; color: var(--muted); font-size: 1.25rem; font-weight: 700;
+  }
+  .input-wrap input {
+    flex: 1; border: none; outline: none; background: transparent;
+    font-family: inherit; font-size: 1.2rem; color: var(--ink);
+    padding: 17px 16px;
+  }
+  .input-wrap input::placeholder { color: #b3b3b3; }
+  .err { color: var(--crimson); font-size: .92rem; margin-top: 10px; display: none; }
+  .err.show { display: block; }
+
+  /* ---------- Buttons ---------- */
+  .cta {
+    appearance: none; border: none; cursor: pointer; font-family: inherit;
+    background: var(--crimson); color: #fff; font-weight: 700;
+    letter-spacing: .01em; border-radius: var(--radius);
+    transition: background .15s, transform .05s;
+  }
+  .cta:hover { background: var(--crimson-dark); }
+  .cta:active { transform: translateY(1px); }
+  .cta:disabled { background: #d9b6b3; cursor: not-allowed; }
+
+  .cta--cover {
+    align-self: flex-start; text-transform: uppercase;
+    font-size: 1.02rem; font-weight: 900; letter-spacing: .03em;
+    padding: 19px 30px; margin-bottom: 18px;
+  }
+  .cta--continue {
+    align-self: flex-start; font-size: 1.12rem;
+    padding: 15px 42px; margin-top: 34px;
+  }
+  .cta--full { width: 100%; padding: 18px; font-size: 1.12rem; font-weight: 900; margin-top: 26px; }
+
+  .enter-hint { margin-top: 16px; color: var(--muted); font-size: .95rem; }
+  .enter-hint kbd {
+    background: #f1f1f1; border-radius: 4px; padding: 2px 8px;
+    font-family: ui-monospace, monospace; font-size: .85rem; color: #444;
+  }
+
+  /* ---------- Scheduling ---------- */
+  .sched-top { display: flex; align-items: center; gap: 8px; color: var(--muted); font-size: 1rem; margin-top: 6px; }
+  .sched-top .dur { color: var(--ink); font-weight: 700; }
+  .sched-label { font-weight: 700; font-size: 1.15rem; margin: 22px 0 12px; }
+
+  .cal {
+    border: 1px solid var(--line); border-radius: 14px; padding: 18px 16px 10px;
+  }
+  .cal__head { display: flex; align-items: center; justify-content: space-between; padding: 4px 6px 14px; }
+  .cal__title { font-weight: 700; font-size: 1.15rem; }
+  .cal__nav {
+    border: none; background: transparent; cursor: pointer; font-size: 1.3rem;
+    color: var(--ink); width: 34px; height: 34px; border-radius: 50%; line-height: 1;
+  }
+  .cal__nav:hover { background: #f5f5f5; }
+  .cal__nav:disabled { color: #d0d0d0; cursor: default; }
+  .cal__nav:disabled:hover { background: transparent; }
+  .cal__grid { display: grid; grid-template-columns: repeat(7, 1fr); gap: 2px 0; }
+  .cal__dow {
+    text-align: center; font-size: .72rem; font-weight: 700; letter-spacing: .06em;
+    color: var(--muted); padding: 6px 0 12px; text-transform: uppercase;
+  }
+  .cal__day {
+    aspect-ratio: 1 / 1; display: flex; align-items: center; justify-content: center;
+    font-size: 1rem; color: var(--ink); border: none; background: transparent;
+    border-radius: 50%; cursor: default; position: relative; font-family: inherit;
+  }
+  .cal__day.muted { color: #cfcfcf; }
+  .cal__day.avail { color: var(--crimson); font-weight: 700; cursor: pointer; }
+  .cal__day.avail::after {
+    content: ""; position: absolute; inset: 14%; border-radius: 50%;
+    background: var(--crimson); opacity: .12; z-index: -0;
+  }
+  .cal__day.avail span { position: relative; z-index: 1; }
+  .cal__day.avail:hover::after { opacity: .22; }
+  .cal__day.today { box-shadow: 0 0 0 1px #d6d6d6 inset; }
+  .cal__day.selected { background: var(--crimson); color: #fff; font-weight: 700; }
+  .cal__day.selected::after { opacity: 0; }
+  .cal__tz {
+    display: flex; align-items: center; gap: 8px; color: var(--muted);
+    font-size: .92rem; padding: 14px 6px 6px; border-top: 1px solid var(--line); margin-top: 8px;
+  }
+
+  .slots-head { display: flex; align-items: center; gap: 8px; font-weight: 700; font-size: 1.1rem; margin: 26px 0 14px; }
+  .slots { display: grid; grid-template-columns: 1fr 1fr; gap: 12px; }
+  .slot {
+    border: 1px solid #f0c9c6; background: #fff; color: var(--crimson);
+    font-weight: 700; font-family: inherit; font-size: 1.1rem; padding: 16px;
+    border-radius: var(--radius); cursor: pointer; transition: background .15s, color .15s, border-color .15s;
+  }
+  .slot:hover { border-color: var(--crimson); }
+  .slot.selected { background: var(--crimson); color: #fff; border-color: var(--crimson); }
+
+  .hidden { display: none !important; }
+
+  /* ---------- Success ---------- */
+  .done { text-align: center; padding: 60px 0; display: flex; flex-direction: column; align-items: center; gap: 18px; }
+  .done__check {
+    width: 76px; height: 76px; border-radius: 50%; background: var(--crimson-tint);
+    color: var(--crimson); display: flex; align-items: center; justify-content: center;
+    font-size: 2.4rem; font-weight: 900;
+  }
+  .done__title { font-weight: 900; font-size: 1.9rem; letter-spacing: -.01em; }
+  .done__text { color: var(--muted); font-size: 1.1rem; line-height: 1.55; max-width: 440px; }
+  .done__sum {
+    margin-top: 6px; font-size: 1.02rem; color: var(--ink); background: #fafafa;
+    border: 1px solid var(--line); border-radius: var(--radius); padding: 16px 22px; line-height: 1.7;
+  }
+
+  @media (max-width: 480px) {
+    .main { padding: 6px 20px 48px; }
+    .bullets li { font-size: 1.08rem; }
+    .cta--cover { width: 100%; text-align: center; }
+  }
+</style>
+</head>
+<body>
+<div class="app">
+  <!-- progress -->
+  <div class="progress" id="progress"><div class="progress__bar" id="progressBar"></div></div>
+
+  <!-- topbar with back -->
+  <div class="topbar">
+    <button class="back" id="backBtn" aria-label="Voltar">&#8249;</button>
+  </div>
+
+  <div class="main">
+    <!-- brand -->
+    <div class="brand" id="brand">
+      <div class="brand__mark"><span class="a">VERO</span><span class="b">MIDIA</span></div>
+      <div class="brand__sub">Tráfego para clínicas</div>
+    </div>
+
+    <!-- ====== 0. CAPA ====== -->
+    <section class="screen active" data-step="capa">
+      <h1 class="headline">🩺 Clínica de estética: agenda lotada com tráfego pago</h1>
+      <ul class="bullets">
+        <li><span class="emo">🎯</span><span>Mais pacientes na cadeira</span></li>
+        <li><span class="emo">🎥</span><span>Captação e edição por nossa conta</span></li>
+        <li><span class="emo">📊</span><span>Otimização semanal das campanhas</span></li>
+        <li><span class="emo">🏆</span><span>8 anos só em saúde e estética</span></li>
+      </ul>
+      <p class="cover__foot">→ Exclusivo para clínicas de saúde e estética dispostas a investir no mínimo R$3.000/mês em anúncios.</p>
+      <button class="cta cta--cover" data-next>Quero lotar minha agenda &nbsp;→</button>
+    </section>
+
+    <!-- ====== 1. NOME ====== -->
+    <section class="screen" data-step="nome">
+      <h2 class="q">Qual o seu nome? <span class="req">*</span></h2>
+      <div class="field">
+        <div class="input-wrap">
+          <input id="inNome" type="text" autocomplete="name" placeholder="Digite seu nome" />
+        </div>
+        <div class="err" id="errNome">Preencha seu nome para continuar.</div>
+      </div>
+      <button class="cta cta--continue" data-next>Continuar</button>
+      <p class="enter-hint">pressione <kbd>Enter ↵</kbd></p>
+    </section>
+
+    <!-- ====== 2. TELEFONE ====== -->
+    <section class="screen" data-step="telefone">
+      <h2 class="q">Qual o seu WhatsApp? <span class="req">*</span></h2>
+      <div class="field">
+        <div class="input-wrap">
+          <input id="inTel" type="tel" inputmode="tel" autocomplete="tel" placeholder="(11) 99999-9999" />
+        </div>
+        <div class="err" id="errTel">Informe um WhatsApp válido com DDD.</div>
+      </div>
+      <button class="cta cta--continue" data-next>Continuar</button>
+      <p class="enter-hint">pressione <kbd>Enter ↵</kbd></p>
+    </section>
+
+    <!-- ====== 3. INSTAGRAM ====== -->
+    <section class="screen" data-step="instagram">
+      <h2 class="q">Qual o @ da sua clínica no Instagram? <span class="req">*</span></h2>
+      <div class="field">
+        <div class="input-wrap">
+          <span class="prefix">@</span>
+          <input id="inInsta" type="text" autocomplete="off" placeholder="suaclinica" />
+        </div>
+        <div class="err" id="errInsta">Informe o @ da sua clínica.</div>
+      </div>
+      <button class="cta cta--continue" data-next>Continuar</button>
+      <p class="enter-hint">pressione <kbd>Enter ↵</kbd></p>
+    </section>
+
+    <!-- ====== 4. PERGUNTA 1 ====== -->
+    <section class="screen" data-step="q1">
+      <h2 class="q">Já investe em tráfego pago hoje? <span class="req">*</span></h2>
+      <div class="options" data-group="q1">
+        <button class="opt" data-value="Sim, eu mesmo faço"><span class="opt__key">A</span><span class="opt__text">Sim, eu mesmo faço</span></button>
+        <button class="opt" data-value="Sim, tenho agência/pessoa"><span class="opt__key">B</span><span class="opt__text">Sim, tenho agência/pessoa</span></button>
+        <button class="opt" data-value="Nunca investi"><span class="opt__key">C</span><span class="opt__text">Nunca investi</span></button>
+      </div>
+      <button class="cta cta--continue" data-next>Continuar</button>
+      <p class="enter-hint">pressione <kbd>Enter ↵</kbd></p>
+    </section>
+
+    <!-- ====== 5. PERGUNTA 2 ====== -->
+    <section class="screen" data-step="q2">
+      <h2 class="q">Está disposto a investir pelo menos <strong>R$3.000/mês</strong> em anúncios, sem contar nossa mão de obra? <span class="req">*</span></h2>
+      <p class="q-desc">Se marcar "não", não vamos te convencer do contrário. Nosso foco é clínica que entende o impacto de um marketing bem feito.</p>
+      <div class="options" data-group="q2">
+        <button class="opt" data-value="Sim, preciso de tráfego profissional"><span class="opt__key">A</span><span class="opt__text"><span class="emo">✅</span>Sim, preciso de tráfego profissional</span></button>
+        <button class="opt" data-value="Não quero investir agora"><span class="opt__key">B</span><span class="opt__text"><span class="emo">❌</span>Não quero investir agora</span></button>
+      </div>
+      <button class="cta cta--continue" data-next>Continuar</button>
+      <p class="enter-hint">pressione <kbd>Enter ↵</kbd></p>
+    </section>
+
+    <!-- ====== 6. AGENDAMENTO ====== -->
+    <section class="screen" data-step="agenda">
+      <div class="sched-top">🗓️ <span class="dur">60 minutos</span></div>
+      <div class="sched-label">Selecione uma data</div>
+      <div class="cal">
+        <div class="cal__head">
+          <button class="cal__nav" id="calPrev" aria-label="Mês anterior">&#8249;</button>
+          <div class="cal__title" id="calTitle">—</div>
+          <button class="cal__nav" id="calNext" aria-label="Próximo mês">&#8250;</button>
+        </div>
+        <div class="cal__grid" id="calGrid"></div>
+        <div class="cal__tz">🌐 <span id="calTz">Horário de Brasília</span></div>
+      </div>
+
+      <div id="slotsBlock" class="hidden">
+        <div class="slots-head">📅 <span id="slotsDate">—</span></div>
+        <div class="slots">
+          <button class="slot" data-time="10:00">10:00</button>
+          <button class="slot" data-time="15:00">15:00</button>
+        </div>
+      </div>
+
+      <button class="cta cta--full" id="bookBtn" disabled>✓ Agendar horário</button>
+    </section>
+
+    <!-- ====== 7. SUCESSO ====== -->
+    <section class="screen" data-step="sucesso">
+      <div class="done">
+        <div class="done__check">✓</div>
+        <div class="done__title">Tudo certo!</div>
+        <p class="done__text">Sua conversa com a Veromidia está agendada. Você vai receber a confirmação no seu WhatsApp.</p>
+        <div class="done__sum" id="doneSum"></div>
+      </div>
+    </section>
+
+  </div>
+</div>
+
+<script>
+(function () {
+  // OPCIONAL: cole aqui a URL do webhook do CRM para receber os leads automaticamente.
+  var WEBHOOK_URL = "";
+
+  var STEPS = ["capa", "nome", "telefone", "instagram", "q1", "q2", "agenda", "sucesso"];
+  var PROGRESS_STEPS = ["nome", "telefone", "instagram", "q1", "q2", "agenda"];
+  var idx = 0;
+
+  var data = { nome: "", telefone: "", instagram: "", q1: "", q2: "", data: "", hora: "" };
+
+  var screens = {};
+  document.querySelectorAll(".screen").forEach(function (s) { screens[s.dataset.step] = s; });
+
+  var progress = document.getElementById("progress");
+  var progressBar = document.getElementById("progressBar");
+  var backBtn = document.getElementById("backBtn");
+
+  function current() { return STEPS[idx]; }
+
+  function render() {
+    var step = current();
+    Object.keys(screens).forEach(function (k) { screens[k].classList.toggle("active", k === step); });
+
+    // progress
+    var pIdx = PROGRESS_STEPS.indexOf(step);
+    if (pIdx >= 0) {
+      progress.classList.add("show");
+      progressBar.style.width = ((pIdx + 1) / PROGRESS_STEPS.length * 100) + "%";
+    } else {
+      progress.classList.remove("show");
+    }
+
+    // back button (hide on capa and sucesso)
+    backBtn.classList.toggle("show", step !== "capa" && step !== "sucesso");
+
+    // focus inputs
+    if (step === "nome") focus("inNome");
+    if (step === "telefone") focus("inTel");
+    if (step === "instagram") focus("inInsta");
+
+    window.scrollTo({ top: 0, behavior: "smooth" });
+  }
+
+  function focus(id) { setTimeout(function () { var el = document.getElementById(id); if (el) el.focus(); }, 60); }
+
+  function goNext() {
+    if (!validate(current())) return;
+    if (idx < STEPS.length - 1) { idx++; render(); }
+  }
+  function goBack() { if (idx > 0) { idx--; render(); } }
+
+  function validate(step) {
+    if (step === "nome") {
+      var v = document.getElementById("inNome").value.trim();
+      data.nome = v;
+      return toggleErr("errNome", v.length >= 2);
+    }
+    if (step === "telefone") {
+      var raw = document.getElementById("inTel").value;
+      var digits = raw.replace(/\D/g, "");
+      data.telefone = raw.trim();
+      return toggleErr("errTel", digits.length >= 10);
+    }
+    if (step === "instagram") {
+      var ig = document.getElementById("inInsta").value.trim().replace(/^@+/, "");
+      data.instagram = ig ? "@" + ig : "";
+      return toggleErr("errInsta", ig.length >= 2);
+    }
+    if (step === "q1") return !!data.q1;
+    if (step === "q2") return !!data.q2;
+    return true; // capa, agenda (botão próprio), sucesso
+  }
+
+  function toggleErr(id, ok) {
+    document.getElementById(id).classList.toggle("show", !ok);
+    return ok;
+  }
+
+  // ---- wire "Continuar"/CTA buttons ----
+  document.querySelectorAll("[data-next]").forEach(function (btn) {
+    btn.addEventListener("click", goNext);
+  });
+  backBtn.addEventListener("click", goBack);
+
+  // ---- option groups ----
+  document.querySelectorAll(".options").forEach(function (group) {
+    var key = group.dataset.group;
+    group.querySelectorAll(".opt").forEach(function (opt) {
+      opt.addEventListener("click", function () {
+        group.querySelectorAll(".opt").forEach(function (o) { o.classList.remove("selected"); });
+        opt.classList.add("selected");
+        data[key] = opt.dataset.value;
+      });
+    });
+  });
+
+  // ---- clear inline errors while typing ----
+  ["inNome", "inTel", "inInsta"].forEach(function (id) {
+    document.getElementById(id).addEventListener("input", function () {
+      var map = { inNome: "errNome", inTel: "errTel", inInsta: "errInsta" };
+      document.getElementById(map[id]).classList.remove("show");
+    });
+  });
+
+  // ---- Enter advances ----
+  document.addEventListener("keydown", function (e) {
+    if (e.key !== "Enter") return;
+    var step = current();
+    if (step === "sucesso") return;
+    if (step === "agenda") { if (!document.getElementById("bookBtn").disabled) book(); return; }
+    e.preventDefault();
+    goNext();
+  });
+
+  /* ================= CALENDAR ================= */
+  var DOW = ["DOM", "SEG", "TER", "QUA", "QUI", "SEX", "SAB"];
+  var MONTHS = ["Janeiro","Fevereiro","Março","Abril","Maio","Junho","Julho","Agosto","Setembro","Outubro","Novembro","Dezembro"];
+  var WEEKDAYS_FULL = ["Domingo","Segunda-Feira","Terça-Feira","Quarta-Feira","Quinta-Feira","Sexta-Feira","Sábado"];
+
+  var today = new Date(); today.setHours(0, 0, 0, 0);
+  var viewYear = today.getFullYear();
+  var viewMonth = today.getMonth();
+  var availFrom = new Date(today); availFrom.setDate(today.getDate() + 2);   // disponível a partir de hoje+2
+  var availTo = new Date(today); availTo.setDate(today.getDate() + 16);      // janela de ~2 semanas
+  var selectedDate = null;
+
+  function isAvailable(d) {
+    if (d < availFrom || d > availTo) return false;
+    var wd = d.getDay();
+    return wd !== 0 && wd !== 6; // só dias úteis
+  }
+  function sameDay(a, b) { return a && b && a.getFullYear() === b.getFullYear() && a.getMonth() === b.getMonth() && a.getDate() === b.getDate(); }
+
+  function buildCalendar() {
+    document.getElementById("calTitle").textContent = MONTHS[viewMonth] + " " + viewYear;
+    var prevBtn = document.getElementById("calPrev");
+    // não deixa voltar antes do mês atual
+    prevBtn.disabled = (viewYear === today.getFullYear() && viewMonth === today.getMonth());
+
+    var grid = document.getElementById("calGrid");
+    grid.innerHTML = "";
+    DOW.forEach(function (d) {
+      var h = document.createElement("div"); h.className = "cal__dow"; h.textContent = d; grid.appendChild(h);
+    });
+
+    var first = new Date(viewYear, viewMonth, 1);
+    var startOffset = first.getDay();
+    var daysInMonth = new Date(viewYear, viewMonth + 1, 0).getDate();
+    var prevDays = new Date(viewYear, viewMonth, 0).getDate();
+
+    var cells = [];
+    for (var i = 0; i < startOffset; i++) cells.push({ day: prevDays - startOffset + 1 + i, cur: false });
+    for (var d = 1; d <= daysInMonth; d++) cells.push({ day: d, cur: true });
+    while (cells.length % 7 !== 0) cells.push({ day: cells.length - (startOffset + daysInMonth) + 1, cur: false });
+
+    cells.forEach(function (c) {
+      var btn = document.createElement("button");
+      btn.className = "cal__day";
+      var span = document.createElement("span"); span.textContent = c.day; btn.appendChild(span);
+      if (!c.cur) { btn.classList.add("muted"); btn.disabled = true; grid.appendChild(btn); return; }
+
+      var dateObj = new Date(viewYear, viewMonth, c.day);
+      if (sameDay(dateObj, today)) btn.classList.add("today");
+
+      if (isAvailable(dateObj)) {
+        btn.classList.add("avail");
+        if (sameDay(dateObj, selectedDate)) btn.classList.add("selected");
+        btn.addEventListener("click", function () { selectDate(dateObj); });
+      } else {
+        btn.classList.add("muted"); btn.disabled = true;
+      }
+      grid.appendChild(btn);
+    });
+  }
+
+  function selectDate(d) {
+    selectedDate = d;
+    data.data = d.getDate() + " de " + MONTHS[d.getMonth()] + " de " + d.getFullYear();
+    data.hora = "";
+    document.getElementById("slotsDate").textContent =
+      WEEKDAYS_FULL[d.getDay()] + ", " + d.getDate() + " De " + MONTHS[d.getMonth()];
+    document.getElementById("slotsBlock").classList.remove("hidden");
+    document.querySelectorAll(".slot").forEach(function (s) { s.classList.remove("selected"); });
+    updateBookBtn();
+    buildCalendar();
+  }
+
+  document.querySelectorAll(".slot").forEach(function (s) {
+    s.addEventListener("click", function () {
+      document.querySelectorAll(".slot").forEach(function (x) { x.classList.remove("selected"); });
+      s.classList.add("selected");
+      data.hora = s.dataset.time;
+      updateBookBtn();
+    });
+  });
+
+  function updateBookBtn() {
+    document.getElementById("bookBtn").disabled = !(selectedDate && data.hora);
+  }
+
+  document.getElementById("calPrev").addEventListener("click", function () {
+    if (this.disabled) return;
+    viewMonth--; if (viewMonth < 0) { viewMonth = 11; viewYear--; } buildCalendar();
+  });
+  document.getElementById("calNext").addEventListener("click", function () {
+    viewMonth++; if (viewMonth > 11) { viewMonth = 0; viewYear++; } buildCalendar();
+  });
+
+  // timezone label with current local time hint
+  try {
+    var hh = String(new Date().getHours()).padStart(2, "0");
+    var mm = String(new Date().getMinutes()).padStart(2, "0");
+    document.getElementById("calTz").textContent = "Horário de Brasília (" + hh + ":" + mm + ")";
+  } catch (e) {}
+
+  document.getElementById("bookBtn").addEventListener("click", book);
+
+  function book() {
+    if (document.getElementById("bookBtn").disabled) return;
+    // resumo
+    document.getElementById("doneSum").innerHTML =
+      "<strong>" + escapeHtml(data.nome) + "</strong><br>" +
+      escapeHtml(data.data) + " às " + escapeHtml(data.hora) + " (Brasília)<br>" +
+      escapeHtml(data.telefone) + " · " + escapeHtml(data.instagram);
+
+    // envia para o CRM se configurado
+    if (WEBHOOK_URL) {
+      try {
+        fetch(WEBHOOK_URL, {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify(data)
+        });
+      } catch (e) {}
+    }
+    idx = STEPS.indexOf("sucesso");
+    render();
+  }
+
+  function escapeHtml(s) {
+    return String(s).replace(/[&<>"']/g, function (c) {
+      return { "&": "&amp;", "<": "&lt;", ">": "&gt;", '"': "&quot;", "'": "&#39;" }[c];
+    });
+  }
+
+  buildCalendar();
+  render();
+})();
+</script>
+</body>
+</html>
