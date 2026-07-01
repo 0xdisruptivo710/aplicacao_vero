@@ -8,6 +8,23 @@
 <link rel="preconnect" href="https://fonts.googleapis.com" />
 <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
 <link href="https://fonts.googleapis.com/css2?family=Lato:ital,wght@0,400;0,700;0,900;1,400;1,700&display=swap" rel="stylesheet" />
+
+<!-- ===== Meta Pixel (dataset "Protocolo Fecha-tudo") ===== -->
+<script>
+  !function(f,b,e,v,n,t,s)
+  {if(f.fbq)return;n=f.fbq=function(){n.callMethod?
+  n.callMethod.apply(n,arguments):n.queue.push(arguments)};
+  if(!f._fbq)f._fbq=n;n.push=n;n.loaded=!0;n.version='2.0';
+  n.queue=[];t=b.createElement(e);t.async=!0;
+  t.src=v;s=b.getElementsByTagName(e)[0];
+  s.parentNode.insertBefore(t,s)}(window, document,'script',
+  'https://connect.facebook.net/en_US/fbevents.js');
+  fbq('init', '1624871735228400');
+  fbq('track', 'PageView');
+</script>
+<noscript><img height="1" width="1" style="display:none"
+  src="https://www.facebook.com/tr?id=1624871735228400&ev=PageView&noscript=1" alt="" /></noscript>
+<!-- ===== /Meta Pixel ===== -->
 <style>
   :root {
     --crimson: #b8312a;
@@ -233,6 +250,29 @@
   }
   .slot:hover { border-color: var(--crimson); }
   .slot.selected { background: var(--crimson); color: #fff; border-color: var(--crimson); }
+  .slot.occupied {
+    border-color: var(--line); background: #f6f6f6; color: #c2c2c2;
+    cursor: not-allowed; text-decoration: line-through; font-weight: 400;
+  }
+  .slot.occupied:hover { border-color: var(--line); }
+
+  /* dias ocupados no calendário */
+  .cal__day.occupied { color: #cccccc; text-decoration: line-through; cursor: not-allowed; }
+  .cal__day.occupied span { position: relative; z-index: 1; }
+
+  /* encaixe via WhatsApp */
+  .encaixe { margin-top: 18px; }
+  .encaixe__hint { color: var(--muted); font-size: .95rem; line-height: 1.45; text-align: center; margin-bottom: 10px; }
+  .wa-btn {
+    display: flex; align-items: center; justify-content: center; gap: 10px;
+    width: 100%; padding: 16px; border-radius: var(--radius);
+    background: #25d366; color: #fff; font-weight: 900; font-size: 1.05rem;
+    text-decoration: none; font-family: inherit; border: none; cursor: pointer;
+    transition: background .15s, transform .05s;
+  }
+  .wa-btn:hover { background: #1ebe5d; }
+  .wa-btn:active { transform: translateY(1px); }
+  .wa-ic { font-size: 1.2rem; line-height: 1; }
 
   .hidden { display: none !important; }
 
@@ -345,7 +385,7 @@
       <p class="q-desc">Se marcar "não", não vamos te convencer do contrário. Nosso foco é clínica que entende o impacto de um marketing bem feito.</p>
       <div class="options" data-group="q2">
         <button class="opt" data-value="Sim, preciso de tráfego profissional"><span class="opt__key">A</span><span class="opt__text"><span class="emo">✅</span>Sim, preciso de tráfego profissional</span></button>
-        <button class="opt" data-value="Não quero investir agora"><span class="opt__key">B</span><span class="opt__text"><span class="emo">❌</span>Não quero investir agora</span></button>
+        <button class="opt" data-value="Não quero investir agora" data-disqualify="1"><span class="opt__key">B</span><span class="opt__text"><span class="emo">❌</span>Não quero investir agora</span></button>
       </div>
       <button class="cta cta--continue" data-next>Continuar</button>
       <p class="enter-hint">pressione <kbd>Enter ↵</kbd></p>
@@ -367,13 +407,17 @@
 
       <div id="slotsBlock" class="hidden">
         <div class="slots-head">📅 <span id="slotsDate">—</span></div>
-        <div class="slots">
-          <button class="slot" data-time="10:00">10:00</button>
-          <button class="slot" data-time="15:00">15:00</button>
-        </div>
+        <div class="slots" id="slots"></div>
       </div>
 
       <button class="cta cta--full" id="bookBtn" disabled>✓ Agendar horário</button>
+
+      <div class="encaixe">
+        <p class="encaixe__hint">Os horários livres enchem rápido. Não achou um bom pra você?</p>
+        <a class="wa-btn" id="waBtn" href="https://wa.me/351961342444" target="_blank" rel="noopener">
+          <span class="wa-ic">💬</span> Tentar encaixe via WhatsApp
+        </a>
+      </div>
     </section>
 
     <!-- ====== 7. SUCESSO ====== -->
@@ -386,15 +430,70 @@
       </div>
     </section>
 
+    <!-- ====== 8. DESQUALIFICADO ====== -->
+    <section class="screen" data-step="desqualificado">
+      <div class="done">
+        <div class="done__check">🙏</div>
+        <div class="done__title">Obrigado pelo interesse!</div>
+        <p class="done__text">No momento trabalhamos apenas com clínicas prontas para investir a partir de <strong>R$3.000/mês</strong> em anúncios. Se isso mudar, vai ser um prazer conversar com você.</p>
+      </div>
+    </section>
+
   </div>
 </div>
 
 <script>
 (function () {
-  // OPCIONAL: cole aqui a URL do webhook do CRM para receber os leads automaticamente.
-  var WEBHOOK_URL = "";
+  // Webhook do n8n (mesmo do PRD). Leads enviados pelo navegador (client-side).
+  var WEBHOOK_URL = "https://aios-n8n-webhook.yspmhc.easypanel.host/webhook/aplicacao";
+  var BOOKING_VALUE = 1;   // valor do Purchase (espelho do agendamento), em BRL
+  var ORIGEM = "vero";
+  var WA_NUMBER = "351961342444";   // encaixe via WhatsApp (+351 961 342 444)
 
-  var STEPS = ["capa", "nome", "telefone", "instagram", "q1", "q2", "agenda", "sucesso"];
+  /* ============ Helpers de rastreamento ============ */
+  function genId() {
+    try { if (window.crypto && crypto.randomUUID) return crypto.randomUUID(); } catch (e) {}
+    return "xxxxxxxxxxxx".replace(/x/g, function () { return ((Math.random() * 16) | 0).toString(16); }) + Date.now().toString(16);
+  }
+  function getCookie(n) {
+    var m = document.cookie.match("(^|;)\\s*" + n + "\\s*=\\s*([^;]+)");
+    return m ? m.pop() : "";
+  }
+  // Dispara evento no Meta Pixel (standard ou custom), com eventID p/ futura dedupe via CAPI.
+  function track(name, params, custom) {
+    try {
+      if (!window.fbq) return;
+      var opts = { eventID: ORIGEM + "-" + name + "-" + LEAD_ID + "-" + Date.now() };
+      if (custom) fbq("trackCustom", name, params || {}, opts);
+      else fbq("track", name, params || {}, opts);
+    } catch (e) {}
+  }
+  // Envia o lead ao n8n. `status`: qualificado | agendado | desqualificado.
+  function sendLead(status, extra) {
+    if (!WEBHOOK_URL) return;
+    var payload = {
+      origem: ORIGEM, status: status, lead_id: LEAD_ID,
+      nome: data.nome, telefone: data.telefone, instagram: data.instagram,
+      q1: data.q1, q2: data.q2, data: data.data, hora: data.hora,
+      fbp: getCookie("_fbp"), fbc: getCookie("_fbc"),
+      pagina: location.href, ts: new Date().toISOString()
+    };
+    if (extra) Object.keys(extra).forEach(function (k) { payload[k] = extra[k]; });
+    try {
+      fetch(WEBHOOK_URL, {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify(payload),
+        keepalive: true
+      });
+    } catch (e) {}
+  }
+
+  var LEAD_ID = genId();     // id estável do lead (correlaciona os envios no n8n)
+  var leadFired = false;     // garante 1 só evento Lead
+  var q2Disqualify = false;  // marcado quando a resposta da Q2 desqualifica
+
+  var STEPS = ["capa", "nome", "telefone", "instagram", "q1", "q2", "agenda", "sucesso", "desqualificado"];
   var PROGRESS_STEPS = ["nome", "telefone", "instagram", "q1", "q2", "agenda"];
   var idx = 0;
 
@@ -422,13 +521,16 @@
       progress.classList.remove("show");
     }
 
-    // back button (hide on capa and sucesso)
-    backBtn.classList.toggle("show", step !== "capa" && step !== "sucesso");
+    // back button (hide on capa, sucesso e desqualificado)
+    backBtn.classList.toggle("show", step !== "capa" && step !== "sucesso" && step !== "desqualificado");
 
     // focus inputs
     if (step === "nome") focus("inNome");
     if (step === "telefone") focus("inTel");
     if (step === "instagram") focus("inInsta");
+
+    // Lead (qualificado) ao chegar no calendário
+    if (step === "agenda" && !leadFired) { leadFired = true; track("Lead"); }
 
     window.scrollTo({ top: 0, behavior: "smooth" });
   }
@@ -436,10 +538,20 @@
   function focus(id) { setTimeout(function () { var el = document.getElementById(id); if (el) el.focus(); }, 60); }
 
   function goNext() {
-    if (!validate(current())) return;
+    var step = current();
+    if (!validate(step)) return;
+    if (step === "capa") track("IniciouFormulario", {}, true);
+    if (step === "q2" && q2Disqualify) { disqualify(); return; }
     if (idx < STEPS.length - 1) { idx++; render(); }
   }
   function goBack() { if (idx > 0) { idx--; render(); } }
+
+  function disqualify() {
+    track("Desqualificado", { motivo: "nao_quer_investir" }, true);
+    sendLead("desqualificado", { motivo: "Não quer investir R$3.000/mês" });
+    idx = STEPS.indexOf("desqualificado");
+    render();
+  }
 
   function validate(step) {
     if (step === "nome") {
@@ -482,6 +594,7 @@
         group.querySelectorAll(".opt").forEach(function (o) { o.classList.remove("selected"); });
         opt.classList.add("selected");
         data[key] = opt.dataset.value;
+        if (key === "q2") q2Disqualify = opt.hasAttribute("data-disqualify");
       });
     });
   });
@@ -498,7 +611,7 @@
   document.addEventListener("keydown", function (e) {
     if (e.key !== "Enter") return;
     var step = current();
-    if (step === "sucesso") return;
+    if (step === "sucesso" || step === "desqualificado") return;
     if (step === "agenda") { if (!document.getElementById("bookBtn").disabled) book(); return; }
     e.preventDefault();
     goNext();
@@ -513,13 +626,31 @@
   var viewYear = today.getFullYear();
   var viewMonth = today.getMonth();
   var availFrom = new Date(today); availFrom.setDate(today.getDate() + 2);   // disponível a partir de hoje+2
-  var availTo = new Date(today); availTo.setDate(today.getDate() + 16);      // janela de ~2 semanas
+  var availTo = new Date(today); availTo.setDate(today.getDate() + 18);      // horizonte de ~2,5 semanas
   var selectedDate = null;
 
-  function isAvailable(d) {
+  // Apenas 3 dias livres por semana: Segunda(1), Quarta(3), Sexta(5). O resto = ocupado.
+  var FREE_WEEKDAYS = [1, 3, 5];
+  // Grade de horários do dia; apenas 3 ficam livres (variando por data), o resto = ocupado.
+  var ALL_TIMES = ["09:00", "10:00", "11:00", "14:00", "15:00", "16:00", "17:00", "18:00"];
+
+  function isFreeDay(d) {
     if (d < availFrom || d > availTo) return false;
+    return FREE_WEEKDAYS.indexOf(d.getDay()) > -1;
+  }
+  // Dia útil dentro do horizonte que NÃO é livre => mostrado como "ocupado".
+  function isOccupiedDay(d) {
+    if (d < today || d > availTo) return false;
     var wd = d.getDay();
-    return wd !== 0 && wd !== 6; // só dias úteis
+    if (wd === 0 || wd === 6) return false;   // fim de semana = fechado
+    return !isFreeDay(d);
+  }
+  // 3 horários livres deterministicamente escolhidos a partir da data.
+  function freeTimesFor(d) {
+    var seed = d.getDate() + d.getMonth();
+    var out = [];
+    for (var i = 0; i < 3; i++) out.push(ALL_TIMES[(seed + i * 3) % ALL_TIMES.length]);
+    return out;
   }
   function sameDay(a, b) { return a && b && a.getFullYear() === b.getFullYear() && a.getMonth() === b.getMonth() && a.getDate() === b.getDate(); }
 
@@ -554,10 +685,13 @@
       var dateObj = new Date(viewYear, viewMonth, c.day);
       if (sameDay(dateObj, today)) btn.classList.add("today");
 
-      if (isAvailable(dateObj)) {
+      if (isFreeDay(dateObj)) {
         btn.classList.add("avail");
         if (sameDay(dateObj, selectedDate)) btn.classList.add("selected");
         btn.addEventListener("click", function () { selectDate(dateObj); });
+      } else if (isOccupiedDay(dateObj)) {
+        btn.classList.add("occupied"); btn.disabled = true;
+        btn.setAttribute("aria-label", "Ocupado");
       } else {
         btn.classList.add("muted"); btn.disabled = true;
       }
@@ -572,19 +706,36 @@
     document.getElementById("slotsDate").textContent =
       WEEKDAYS_FULL[d.getDay()] + ", " + d.getDate() + " De " + MONTHS[d.getMonth()];
     document.getElementById("slotsBlock").classList.remove("hidden");
-    document.querySelectorAll(".slot").forEach(function (s) { s.classList.remove("selected"); });
+    renderSlots(d);
     updateBookBtn();
     buildCalendar();
   }
 
-  document.querySelectorAll(".slot").forEach(function (s) {
-    s.addEventListener("click", function () {
-      document.querySelectorAll(".slot").forEach(function (x) { x.classList.remove("selected"); });
-      s.classList.add("selected");
-      data.hora = s.dataset.time;
-      updateBookBtn();
+  // Renderiza os horários do dia: 3 livres (clicáveis) + o resto "ocupado".
+  function renderSlots(d) {
+    var free = freeTimesFor(d);
+    var box = document.getElementById("slots");
+    box.innerHTML = "";
+    ALL_TIMES.forEach(function (t) {
+      var b = document.createElement("button");
+      b.className = "slot";
+      b.textContent = t;
+      if (free.indexOf(t) > -1) {
+        b.dataset.time = t;
+        b.addEventListener("click", function () {
+          box.querySelectorAll(".slot").forEach(function (x) { x.classList.remove("selected"); });
+          b.classList.add("selected");
+          data.hora = t;
+          updateBookBtn();
+        });
+      } else {
+        b.classList.add("occupied");
+        b.disabled = true;
+        b.setAttribute("aria-label", "Ocupado");
+      }
+      box.appendChild(b);
     });
-  });
+  }
 
   function updateBookBtn() {
     document.getElementById("bookBtn").disabled = !(selectedDate && data.hora);
@@ -607,6 +758,24 @@
 
   document.getElementById("bookBtn").addEventListener("click", book);
 
+  // ---- Tentar encaixe via WhatsApp ----
+  function waLink() {
+    var msg = "Olá! Sou " + (data.nome || "") + (data.instagram ? " (" + data.instagram + ")" : "") +
+      ". Os horários da agenda estão cheios e gostaria de tentar um encaixe para conversar com a Veromidia.";
+    return "https://wa.me/" + WA_NUMBER + "?text=" + encodeURIComponent(msg);
+  }
+  document.getElementById("waBtn").addEventListener("click", function (e) {
+    e.preventDefault();
+    // Encaixe via WhatsApp conta como "agendamento feito": dispara os mesmos eventos
+    // de conversão do book() — Schedule (objetivo Leads) + Purchase (objetivo Vendas) —
+    // além do Contact. Assim o clique no encaixe também otimiza campanha de Vendas.
+    track("Contact", { method: "whatsapp_encaixe" });
+    track("Schedule");
+    track("Purchase", { value: BOOKING_VALUE, currency: "BRL" });
+    sendLead("encaixe_whatsapp", { motivo: "Tentar encaixe via WhatsApp" });
+    window.open(waLink(), "_blank");
+  });
+
   function book() {
     if (document.getElementById("bookBtn").disabled) return;
     // resumo
@@ -615,16 +784,11 @@
       escapeHtml(data.data) + " às " + escapeHtml(data.hora) + " (Brasília)<br>" +
       escapeHtml(data.telefone) + " · " + escapeHtml(data.instagram);
 
-    // envia para o CRM se configurado
-    if (WEBHOOK_URL) {
-      try {
-        fetch(WEBHOOK_URL, {
-          method: "POST",
-          headers: { "Content-Type": "application/json" },
-          body: JSON.stringify(data)
-        });
-      } catch (e) {}
-    }
+    // eventos Meta do agendamento marcado + envio ao n8n
+    track("Schedule");
+    track("Purchase", { value: BOOKING_VALUE, currency: "BRL" });
+    sendLead("agendado");
+
     idx = STEPS.indexOf("sucesso");
     render();
   }
@@ -637,6 +801,7 @@
 
   buildCalendar();
   render();
+  track("ViewContent", { content_name: "Formulario Vero" });
 })();
 </script>
 </body>
