@@ -323,7 +323,7 @@
         <li><span class="emo">📊</span><span>Otimização semanal das campanhas</span></li>
         <li><span class="emo">🏆</span><span>8 anos só em saúde e estética</span></li>
       </ul>
-      <p class="cover__foot">→ Exclusivo para clínicas de saúde e estética dispostas a investir no mínimo R$3.000/mês em anúncios.</p>
+      <p class="cover__foot">→ Feito para clínicas de saúde e estética que querem crescer com previsibilidade, não com sorte.</p>
       <button class="cta cta--cover" data-next>Quero lotar minha agenda &nbsp;→</button>
     </section>
 
@@ -381,11 +381,12 @@
 
     <!-- ====== 5. PERGUNTA 2 ====== -->
     <section class="screen" data-step="q2">
-      <h2 class="q">Está disposto a investir pelo menos <strong>R$3.000/mês</strong> em anúncios, sem contar nossa mão de obra? <span class="req">*</span></h2>
-      <p class="q-desc">Se marcar "não", não vamos te convencer do contrário. Nosso foco é clínica que entende o impacto de um marketing bem feito.</p>
+      <h2 class="q">Qual investimento mensal em anúncios faz sentido para a sua clínica hoje? <span class="req">*</span></h2>
+      <p class="q-desc">Esse valor é só a verba que vai para as plataformas — não inclui a nossa mão de obra. Não tem resposta errada; é para a gente preparar a conversa certa para o seu momento.</p>
       <div class="options" data-group="q2">
-        <button class="opt" data-value="Sim, preciso de tráfego profissional"><span class="opt__key">A</span><span class="opt__text"><span class="emo">✅</span>Sim, preciso de tráfego profissional</span></button>
-        <button class="opt" data-value="Não quero investir agora" data-disqualify="1"><span class="opt__key">B</span><span class="opt__text"><span class="emo">❌</span>Não quero investir agora</span></button>
+        <button class="opt" data-value="Consigo investir R$3.000/mês ou mais" data-score="3"><span class="opt__key">A</span><span class="opt__text"><span>Consigo investir <strong>R$3.000/mês</strong> ou mais</span></span></button>
+        <button class="opt" data-value="Depende do retorno — quero entender melhor antes de definir" data-score="2"><span class="opt__key">B</span><span class="opt__text">Depende do retorno — quero entender melhor antes de definir</span></button>
+        <button class="opt" data-value="Hoje ainda não consigo esse valor" data-score="1"><span class="opt__key">C</span><span class="opt__text">Hoje ainda não consigo esse valor</span></button>
       </div>
       <button class="cta cta--continue" data-next>Continuar</button>
       <p class="enter-hint">pressione <kbd>Enter ↵</kbd></p>
@@ -430,15 +431,6 @@
       </div>
     </section>
 
-    <!-- ====== 8. DESQUALIFICADO ====== -->
-    <section class="screen" data-step="desqualificado">
-      <div class="done">
-        <div class="done__check">🙏</div>
-        <div class="done__title">Obrigado pelo interesse!</div>
-        <p class="done__text">No momento trabalhamos apenas com clínicas prontas para investir a partir de <strong>R$3.000/mês</strong> em anúncios. Se isso mudar, vai ser um prazer conversar com você.</p>
-      </div>
-    </section>
-
   </div>
 </div>
 
@@ -446,7 +438,9 @@
 (function () {
   // Webhook do n8n (mesmo do PRD). Leads enviados pelo navegador (client-side).
   var WEBHOOK_URL = "https://aios-n8n-webhook.yspmhc.easypanel.host/webhook/aplicacao";
-  var BOOKING_VALUE = 1;   // valor do Purchase (espelho do agendamento), em BRL
+  // O Purchase (espelho do agendamento) vale conforme a faixa de investimento da Q2:
+  // sem isso o Meta aprenderia que lead frio vale o mesmo que lead com orçamento.
+  var Q2_TIER = { 3: "alta", 2: "media", 1: "baixa" };
   var ORIGEM = "vero";
   var WA_NUMBER = "351961342444";   // encaixe via WhatsApp (+351 961 342 444)
 
@@ -468,13 +462,14 @@
       else fbq("track", name, params || {}, opts);
     } catch (e) {}
   }
-  // Envia o lead ao n8n. `status`: qualificado | agendado | desqualificado.
+  // Envia o lead ao n8n. `status`: agendado | encaixe_whatsapp.
   function sendLead(status, extra) {
     if (!WEBHOOK_URL) return;
     var payload = {
       origem: ORIGEM, status: status, lead_id: LEAD_ID,
       nome: data.nome, telefone: data.telefone, instagram: data.instagram,
-      q1: data.q1, q2: data.q2, data: data.data, hora: data.hora,
+      q1: data.q1, q2: data.q2, qualificacao: Q2_TIER[q2Score] || "",
+      data: data.data, hora: data.hora,
       fbp: getCookie("_fbp"), fbc: getCookie("_fbc"),
       pagina: location.href, ts: new Date().toISOString()
     };
@@ -491,9 +486,9 @@
 
   var LEAD_ID = genId();     // id estável do lead (correlaciona os envios no n8n)
   var leadFired = false;     // garante 1 só evento Lead
-  var q2Disqualify = false;  // marcado quando a resposta da Q2 desqualifica
+  var q2Score = 0;           // faixa de investimento escolhida na Q2 (3 = alta, 1 = baixa)
 
-  var STEPS = ["capa", "nome", "telefone", "instagram", "q1", "q2", "agenda", "sucesso", "desqualificado"];
+  var STEPS = ["capa", "nome", "telefone", "instagram", "q1", "q2", "agenda", "sucesso"];
   var PROGRESS_STEPS = ["nome", "telefone", "instagram", "q1", "q2", "agenda"];
   var idx = 0;
 
@@ -521,8 +516,8 @@
       progress.classList.remove("show");
     }
 
-    // back button (hide on capa, sucesso e desqualificado)
-    backBtn.classList.toggle("show", step !== "capa" && step !== "sucesso" && step !== "desqualificado");
+    // back button (hide on capa e sucesso)
+    backBtn.classList.toggle("show", step !== "capa" && step !== "sucesso");
 
     // focus inputs
     if (step === "nome") focus("inNome");
@@ -541,17 +536,12 @@
     var step = current();
     if (!validate(step)) return;
     if (step === "capa") track("IniciouFormulario", {}, true);
-    if (step === "q2" && q2Disqualify) { disqualify(); return; }
     if (idx < STEPS.length - 1) { idx++; render(); }
   }
   function goBack() { if (idx > 0) { idx--; render(); } }
 
-  function disqualify() {
-    track("Desqualificado", { motivo: "nao_quer_investir" }, true);
-    sendLead("desqualificado", { motivo: "Não quer investir R$3.000/mês" });
-    idx = STEPS.indexOf("desqualificado");
-    render();
-  }
+  // Valor do Purchase: proporcional à faixa de investimento da Q2.
+  function bookingValue() { return q2Score || 1; }
 
   function validate(step) {
     if (step === "nome") {
@@ -594,7 +584,7 @@
         group.querySelectorAll(".opt").forEach(function (o) { o.classList.remove("selected"); });
         opt.classList.add("selected");
         data[key] = opt.dataset.value;
-        if (key === "q2") q2Disqualify = opt.hasAttribute("data-disqualify");
+        if (key === "q2") q2Score = parseInt(opt.dataset.score, 10) || 0;
       });
     });
   });
@@ -611,7 +601,7 @@
   document.addEventListener("keydown", function (e) {
     if (e.key !== "Enter") return;
     var step = current();
-    if (step === "sucesso" || step === "desqualificado") return;
+    if (step === "sucesso") return;
     if (step === "agenda") { if (!document.getElementById("bookBtn").disabled) book(); return; }
     e.preventDefault();
     goNext();
@@ -625,31 +615,29 @@
   var today = new Date(); today.setHours(0, 0, 0, 0);
   var viewYear = today.getFullYear();
   var viewMonth = today.getMonth();
-  var availFrom = new Date(today); availFrom.setDate(today.getDate() + 2);   // disponível a partir de hoje+2
-  var availTo = new Date(today); availTo.setDate(today.getDate() + 18);      // horizonte de ~2,5 semanas
+  var availFrom = new Date(today);                                          // disponível a partir de hoje
+  var availTo = new Date(today); availTo.setDate(today.getDate() + 1);      // apenas hoje e o dia seguinte
+  var horizonTo = new Date(today); horizonTo.setDate(today.getDate() + 18); // horizonte visual de ~2,5 semanas
   var selectedDate = null;
 
-  // Apenas 3 dias livres por semana: Segunda(1), Quarta(3), Sexta(5). O resto = ocupado.
-  var FREE_WEEKDAYS = [1, 3, 5];
-  // Grade de horários do dia; apenas 3 ficam livres (variando por data), o resto = ocupado.
+  // Grade de horários do dia; apenas 4 ficam livres (variando por data), o resto = ocupado.
   var ALL_TIMES = ["09:00", "10:00", "11:00", "14:00", "15:00", "16:00", "17:00", "18:00"];
 
   function isFreeDay(d) {
-    if (d < availFrom || d > availTo) return false;
-    return FREE_WEEKDAYS.indexOf(d.getDay()) > -1;
+    return d >= availFrom && d <= availTo;
   }
   // Dia útil dentro do horizonte que NÃO é livre => mostrado como "ocupado".
   function isOccupiedDay(d) {
-    if (d < today || d > availTo) return false;
+    if (d < today || d > horizonTo) return false;
     var wd = d.getDay();
     if (wd === 0 || wd === 6) return false;   // fim de semana = fechado
     return !isFreeDay(d);
   }
-  // 3 horários livres deterministicamente escolhidos a partir da data.
+  // 4 horários livres deterministicamente escolhidos a partir da data.
   function freeTimesFor(d) {
     var seed = d.getDate() + d.getMonth();
     var out = [];
-    for (var i = 0; i < 3; i++) out.push(ALL_TIMES[(seed + i * 3) % ALL_TIMES.length]);
+    for (var i = 0; i < 4; i++) out.push(ALL_TIMES[(seed + i * 3) % ALL_TIMES.length]);
     return out;
   }
   function sameDay(a, b) { return a && b && a.getFullYear() === b.getFullYear() && a.getMonth() === b.getMonth() && a.getDate() === b.getDate(); }
@@ -711,7 +699,7 @@
     buildCalendar();
   }
 
-  // Renderiza os horários do dia: 3 livres (clicáveis) + o resto "ocupado".
+  // Renderiza os horários do dia: 4 livres (clicáveis) + o resto "ocupado".
   function renderSlots(d) {
     var free = freeTimesFor(d);
     var box = document.getElementById("slots");
@@ -771,7 +759,7 @@
     // além do Contact. Assim o clique no encaixe também otimiza campanha de Vendas.
     track("Contact", { method: "whatsapp_encaixe" });
     track("Schedule");
-    track("Purchase", { value: BOOKING_VALUE, currency: "BRL" });
+    track("Purchase", { value: bookingValue(), currency: "BRL" });
     sendLead("encaixe_whatsapp", { motivo: "Tentar encaixe via WhatsApp" });
     window.open(waLink(), "_blank");
   });
@@ -786,7 +774,7 @@
 
     // eventos Meta do agendamento marcado + envio ao n8n
     track("Schedule");
-    track("Purchase", { value: BOOKING_VALUE, currency: "BRL" });
+    track("Purchase", { value: bookingValue(), currency: "BRL" });
     sendLead("agendado");
 
     idx = STEPS.indexOf("sucesso");
